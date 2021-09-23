@@ -16,9 +16,57 @@ from aims.loc as loc
 
 
 
-
-
-
+/*
+select * from aims.PRC
+select * from aims.TASK
+select * from aims.cod where TYPE='a'
+select * from aims.cod where type = 'd'
+select * from aims.cod where type = 'j' order by name
+select * from aims.cod where type = 'r' order by name
+select * from aims.cod where type = 'g' order by name
+select * from aims.BLD
+select * from aims.LOC
+select count(*) as cntPMs from aims.wko where wko.WO_TYPE <> 'PM' and wko.WO_STATUS = 'OP' 
+select * from aims.RSK
+select * from aims.msched
+select * from aims.STATE_MACRO
+select * from aims.RMACRO
+select * from aims.AREA
+select * from aims.SRVC_AREA
+select * from aims.CRD
+select * from aims.EQU_WARRANTY
+select * from aims.sym
+select * from aims.REQUEST
+select * from aims.PO
+select * from aims.LAB_DEPL_CLASS
+select * from aims.cnt
+select * from aims.EQU_CNT
+select * from aims.NOTES
+select * from aims.ehrs
+select * from aims.PMI
+select * from aims.mtr
+select * from aims.WKO_SIGNOFF
+select * from aims.WO_GROUP
+select * from aims.cussetup 
+select * from aims.CUSEXPD 
+select * from aims.CUSEXPN
+select * from aims.document	
+select * from aims.DOCUMENT_ATTACHMENT
+select * from aims.WAREHOUSE
+select * from aims.wrhs 
+select * from aims.PROCESS_QUEUE
+select * from aims.DIR_ADR
+select * from aims.ehrs 
+select * from aims.bud 
+select * from aims.SPEC
+select * from aims.CRD
+select * from aims.MANAGER
+select * from aims.ECRI_DEVICE
+select * from aims.ALERT
+select * from aims.ALERT__ECRI_DEVICE
+select * from aims.ALERT__EQU
+select * from aims.VMODEL_MANUAL
+*/
 
 
 
@@ -1087,4 +1135,381 @@ from aims.equ
 	left join aims.COD		as rc on equ.RESP_CTR = rc.code and equ.FACILITY = rc.FACILITY and rc.[TYPE] = 'a'
 order by etype.[NAME],cc.[NAME]
 
+*/
+
+
+--	Documents and attachments
+/*
+
+select 
+	 d.[DESCRIPTION]
+	,d.[NAME]						as [File Name]
+	,da.RECORD_TYPE
+	,da.RECORD_ID
+	,facility.[NAME]
+from aims.DOCUMENT					as d
+	join aims.DOCUMENT_ATTACHMENT	as da on d.DOCUMENT_ID = da.DOCUMENT_ID
+	join aims.COD					as facility on da.FACILITY = facility.CODE and facility.[TYPE] = 'y'
+
+where d.document_id = 6
+
+order by d.[NAME]
+
+*/
+
+/*
+select * from aims.DOCUMENT where [NAME] = 'chiller.jpg'
+begin tran 
+
+	delete from aims.DOCUMENT_ATTACHMENT where DOCUMENT_ID = 6
+
+	delete aims.DOCUMENT
+	where [NAME] = 'chiller.jpg' 
+
+	commit tran
+*/
+
+--	Manuf's with models
+/*
+
+select 
+	 manuf.[NAME] 
+	,vm.MODEL 
+	,vm.MODEL_NAME
+	,vm.[DESCRIPTION]
+	,count(tag_number)					as countEquip
+	,count(distinct da.document_attachment_ID)	as attachments
+from aims.VMODEL	as vm 
+	join aims.cod	as manuf on vm.VENDOR = manuf.CODE and manuf.[TYPE] = 'm'
+	join aims.equ	as eq on vm.VENDOR = eq.MANUFACTUR and vm.MODEL = eq.MODEL_NUM
+	left join aims.DOCUMENT_ATTACHMENT as da on vm.VMODEL_ID = da.RECORD_ID and RECORD_TYPE = 'model'
+group by 
+	 manuf.[NAME] 
+	,vm.MODEL 
+	,vm.MODEL_NAME
+	,vm.[DESCRIPTION]
+order by manuf.[NAME]
+
+*/
+
+--	Clear all attachments EXCEPT non-OneSource
+/*
+
+select distinct 
+	 da.DOCUMENT_ATTACHMENT_ID
+from aims.DOCUMENT as d
+	left join aims.DOCUMENT_ATTACHMENT as da on d.DOCUMENT_ID = da.DOCUMENT_ID
+where d.[DESCRIPTION] not like 'https:%'
+
+begin tran 
+delete aims.DOCUMENT_ATTACHMENT
+from aims.DOCUMENT as d
+	join aims.DOCUMENT_ATTACHMENT as da on d.DOCUMENT_ID = da.DOCUMENT_ID
+where d.[DESCRIPTION] not like 'https:%'
+
+commit tran
+
+select distinct 
+	d.*
+from aims.DOCUMENT as d
+	left join aims.DOCUMENT_ATTACHMENT as da on d.DOCUMENT_ID = da.DOCUMENT_ID
+where d.[DESCRIPTION] not like 'https:%'
+
+delete aims.DOCUMENT
+from aims.DOCUMENT as d
+where d.[DESCRIPTION] not like 'https:%'
+
+*/
+
+
+
+
+
+
+
+
+
+
+--	Cost Centers HOH
+/*
+
+select 
+	 facility.[name]						as facility
+	,cc.[NAME]								as [cost center] 
+	,convert(time,ahrs.SUN_BEG_DATETIME)	as sunBegin
+	,convert(time,ahrs.SUN_END_DATETIME)	as sunEnd
+	,convert(time,ahrs.MON_BEG_DATETIME)	as monBegin
+	,convert(time,ahrs.MON_END_DATETIME)	as monEnd
+	,convert(time,ahrs.TUE_BEG_DATETIME)	as tueBegin
+	,convert(time,ahrs.TUE_END_DATETIME)	as tueEnd
+	,convert(time,ahrs.WED_BEG_DATETIME)	as wedBegin
+	,convert(time,ahrs.WED_END_DATETIME)	as wedEnd
+	,convert(time,ahrs.THU_BEG_DATETIME)	as thuBegin
+	,convert(time,ahrs.THU_END_DATETIME)	as thuEnd
+	,convert(time,ahrs.FRI_BEG_DATETIME)	as friBegin
+	,convert(time,ahrs.FRI_END_DATETIME)	as friEnd
+	,convert(time,ahrs.SAT_BEG_DATETIME)	as satBegin
+	,convert(time,ahrs.SAT_END_DATETIME)	as satEnd
+	,ahrs.*
+from aims.AHRS
+	join aims.cod	as facility on AHRS.FACILITY = facility.CODE and facility.[TYPE] = 'y'
+	join aims.COD	as cc on ahrs.FACILITY = cc.FACILITY and ahrs.ACCOUNT = cc.[CODE] and cc.[TYPE] = 'a'
+
+*/
+
+
+--	Acquisition / life-cycle data
+/*
+select distinct
+	-- fac.[NAME]						as facility 
+	--,equ.TAG_NUMBER					as [tag #]
+	--,manuf.[NAME]					as [manuf]
+	etype.[NAME]					as [equip type]
+	--,equ.DESCRIPTN					as [description]
+	--,equ.model_num					as [model #]
+	--,equ.EQU_MODEL_NAME				as [model name]
+	--,estatus.[NAME]					as [equ status]
+	,equ.[TYPE]						as [equ type code]
+	,eClass.[NAME]					as [equ class]
+	--,equ.PURCH_COST
+	--,equ.AVG_COST
+	--,equ.SALVAGE_VALUE
+	--,equ.REPLACEMENT_COST
+	--,equ.CRITICAL
+	--,equ.REPLACEMENT_DATETIME
+	--,equ.SALVAGE_DATETIME
+	--,supplier.[NAME]				as [supplier]
+	--,own.OWNERSHIP_CODE
+	--,own.OWNERSHIP_NAME
+	--,ish.[HIPAA]
+	--,ish.[CAPABLE_EPHI]
+	--,ish.[USED_EPHI]
+	--,ish.[CAPABLE_LOGON_COMPLIANCE]
+	--,ish.[USED_LOGON_COMPLIANCE]
+	--,ish.[CAPABLE_PASSWORD_COMPLIANCE]
+	--,ish.[USED_PASSWORD_COMPLIANCE]
+	--,ish.[CAPABLE_AUTO_LOGOFF]
+	--,ish.[USED_AUTO_LOGOFF]
+	--,ish.[CAPABLE_ENCRYPTION]
+	--,ish.[USED_ENCRYPTION]
+	--,ish.[CAPABLE_AUDIT]
+	--,ish.[USED_AUDIT]
+	--,lif.SALVAGE_VALUE
+	--,lif.SALVAGE_DATETIME
+	--,lif.REPLACEMENT_COST
+	--,lif.REPLACEMENT_DATETIME
+from aims.EQU
+	join aims.cod					as fac on equ.FACILITY = fac.CODE and fac.[TYPE] = 'y'
+	join aims.cod					as eStatus on equ.EQU_STATUS = eStatus.CODE and eStatus.[TYPE] = 's'
+	join aims.cod					as manuf on equ.MANUFACTUR = manuf.CODE and manuf.[TYPE] = 'm'
+	left join aims.COD				as etype on equ.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
+		left join aims.TYP			as et on equ.[TYPE] = et.[TYPE]
+			left join aims.cod		as eClass on et.CLASS = eClass.CODE and eClass.[TYPE] = 'c'
+	left join aims.cod				as supplier on equ.SUPPLIER = supplier.CODE 
+										and (equ.FACILITY = supplier.FACILITY or supplier.FACILITY = 'MAIN')
+										and supplier.[TYPE] = 'd'
+	left join aims.[OWNERSHIP]		as own on equ.[OWNERSHIP] = own.OWNERSHIP_CODE and (equ.FACILITY = own.FACILITY or own.FACILITY = 'Main')
+	left join aims.IS_EQUIP			as ise on equ.FACILITY = ise.FACILITY and equ.TAG_NUMBER = ise.TAG_NUMBER
+		left join aims.IS_HIPAA		as ish on ise.IS_EQUIP_ID = ish.IS_EQUIP_ID
+	left join aims.LIFE				as lif on equ.FACILITY = lif.FACILITY and equ.TAG_NUMBER = lif.TAG_NUMBER
+	left join aims.VMODEL			as vm on equ.MANUFACTUR = vm.VENDOR and equ.MODEL_NUM = vm.MODEL
+--where eClass.[NAME]	 is null
+order by etype.[NAME]	
+*/
+
+
+
+/*
+
+update aims.LIFE
+set EQU_CLASS = etype.CLASS
+from aims.LIFE
+	join aims.EQU as equ on life.FACILITY = equ.FACILITY and life.TAG_NUMBER = equ.TAG_NUMBER 
+	join aims.TYP as etype on equ.[TYPE] = etype.[TYPE]
+	join aims.cod as eclass on etype.CLASS = eclass.CODE and eclass.[TYPE] = 'c'
+	join aims.COD as etypeName on etype.[TYPE] = etypeName.CODE and etypeName.[TYPE] = 'g'
+
+update aims.TYP
+set CLASS = 'TE'
+where type	= 'PRESSUR'
+
+update aims.typ
+set CLASS = NULL
+
+update aims.equ 
+set [OWNERSHIP] = 'OWNED'
+where [OWNERSHIP] is null
+ 
+update aims.equ 
+set SUPPLIER = potentialSupplier.CODE
+from aims.equ 
+	join aims.COD			as manufName on equ.MANUFACTUR = manufName.CODE and manufName.[TYPE] = 'm'
+	join aims.cod			as potentialSupplier on manufName.[NAME] = potentialSupplier.[NAME] and potentialSupplier.[TYPE] = 'm'
+		join aims.VENDOR	as potSupVendor on potentialSupplier.CODE = potSupVendor.VENDOR and potSupVendor.IS_SUP = 'Y'
+
+*/
+
+/*
+update aims.equ 
+set AVG_COST = 'Y'
+*/
+
+/*
+update aims.equ 
+set CRITICAL =	case when etype.[NAME] in ('Analyzer, Blood Gas','C-ARM','Heart-Lung Bypass Units','Pumps, Blood')
+					then 'Y'
+					else 'N'
+				end
+from aims.equ 
+	left join aims.COD				as etype on equ.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
+*/
+
+/*
+select 
+	 etype.[NAME]
+	,PHYS_LIFE
+	,DEP_LIFE
+from aims.TYP
+	join aims.cod as etype on typ.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
+where PHYS_LIFE > 0
+	and DEP_LIFE > 0
+	and DEP_LIFE > PHYS_LIFE
+*/
+
+
+/*
+
+update aims.equ 
+set  purch_cost			= 1850 
+	,avg_cost			= 'Y'
+	,replacement_cost	= 3800
+	,
+where equ.DESCRIPTN = 'Infusion Pump'
+*/
+
+
+/*
+select 
+	 sd.[NAME]
+	,spec.*
+from aims.SPEC
+	left join aims.cod	as sd on spec.SRVC_DEPT = sd.code and sd.[TYPE] = 'v'
+order by sd.[NAME]
+
+update aims.SPEC
+set spec = 'MRI'
+where spec_code = 8
+*/
+
+/*	--this is next! 
+select * from IS_HIPAA
+select h_create... from vmodel
+*/
+
+
+
+--	IS - Create base is_equip record for all items which don't have it
+/*
+insert into aims.IS_EQUIP
+(
+	 FACILITY
+	,TAG_NUMBER
+	,FDA_DEVICE
+)
+select 
+	 FACILITY
+	,TAG_NUMBER
+	,''				as FDA_DEVICE
+from aims.equ as e 
+where 
+	not exists	(
+					select 
+						*
+					from aims.equ				as equ
+						join aims.IS_EQUIP		as ise on equ.FACILITY = ise.FACILITY and equ.TAG_NUMBER = ise.TAG_NUMBER
+					where equ.FACILITY = e.FACILITY and equ.TAG_NUMBER = e.TAG_NUMBER
+				)
+*/
+
+
+--	IS - create HIPAA record for all equipment items which do not have it
+/*
+--select * from aims.IS_HIPAA
+insert into aims.IS_HIPAA
+(
+	IS_EQUIP_ID
+)
+select 
+	 ise.IS_EQUIP_ID
+from aims.equ as e
+	join aims.IS_EQUIP as ise on e.FACILITY = ise.FACILITY and e.TAG_NUMBER = ise.TAG_NUMBER
+where 
+	not exists	(
+					select * 
+					from aims.equ			as equ
+						join aims.IS_EQUIP	as ise on e.FACILITY = ise.FACILITY and e.TAG_NUMBER = ise.TAG_NUMBER
+						join aims.IS_HIPAA	as ish on ise.IS_EQUIP_ID = ish.IS_EQUIP_ID
+					where e.FACILITY = equ.FACILITY and e.TAG_NUMBER = equ.TAG_NUMBER
+				)
+*/
+
+/*
+update aims.IS_HIPAA
+set  HIPAA								= 'Y' 
+    ,[CAPABLE_EPHI]						= 'Y'
+    ,[USED_EPHI]						= 'N'
+
+    ,[CAPABLE_LOGON_COMPLIANCE]			= 'N'
+    ,[USED_LOGON_COMPLIANCE]			= 'N'
+    ,[CAPABLE_PASSWORD_COMPLIANCE]		= 'N'
+    ,[USED_PASSWORD_COMPLIANCE]			= 'N'
+    ,[CAPABLE_AUTO_LOGOFF]				= 'N'
+    ,[USED_AUTO_LOGOFF]					= 'N'
+    ,[CAPABLE_ENCRYPTION]				= 'Y'
+    ,[USED_ENCRYPTION]					= 'Y'
+    ,[CAPABLE_AUDIT]					= 'N'
+    ,[USED_AUDIT]						= 'N'
+
+from aims.IS_HIPAA			as ish
+	join aims.IS_EQUIP		as ise on ish.IS_EQUIP_ID = ise.IS_EQUIP_ID
+	join aims.equ			as equ on ise.FACILITY = equ.FACILITY and ise.TAG_NUMBER = equ.TAG_NUMBER
+	join aims.COD			as etype on equ.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
+where etype.[NAME] = 'Vital Signs Acquisition Unit'
+
+select distinct 
+	 etype.[NAME]			as [equ type] 
+from aims.IS_HIPAA			as ish
+	join aims.IS_EQUIP		as ise on ish.IS_EQUIP_ID = ise.IS_EQUIP_ID
+	join aims.equ			as equ on ise.FACILITY = equ.FACILITY and ise.TAG_NUMBER = equ.TAG_NUMBER
+	join aims.COD			as etype on equ.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
+where ish.HIPAA is null 
+order by etype.[NAME]
+*/
+
+/*
+update aims.VMODEL
+set	 H_CREATE		= 'Y'
+	,H_INTEGRITY	= 'N'
+	,H_PRIVACY		= 'N'
+	,H_STORE		= 'Y'
+	,H_TRANSMITS	= 'N'
+	,CRITICAL_ALARM	= 'N'
+	,CRITICAL		= 'N'
+where vmodel.[TYPE] = 'MOBUNIT'
+
+select distinct 
+	 etype.[NAME]			as [equ type]
+	,etype.CODE				as [equ type code]
+	,ish.HIPAA
+	,ish.CAPABLE_EPHI
+	,ish.USED_EPHI
+	,vm.H_CREATE
+from aims.VMODEL			as vm
+	join aims.equ			as equ on vm.VENDOR = equ.MANUFACTUR and vm.MODEL = equ.MODEL_NUM
+	join aims.IS_EQUIP		as ise on equ.FACILITY = ise.FACILITY and equ.TAG_NUMBER = ise.TAG_NUMBER
+	join aims.IS_HIPAA		as ish on ise.IS_EQUIP_ID = ish.IS_EQUIP_ID
+	join aims.COD			as etype on vm.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
+where isnull(vm.H_CREATE,'') = ''
+	--and 
+	--ish.HIPAA = 'N'
 */
