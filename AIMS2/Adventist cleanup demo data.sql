@@ -1513,3 +1513,232 @@ where isnull(vm.H_CREATE,'') = ''
 	--and 
 	--ish.HIPAA = 'N'
 */
+
+
+--	Equipment Class with Types
+/*
+select distinct
+	 ec.[NAME]			as [equip class] 
+	,etName.[NAME]		as [equip type] 
+from aims.equ			as equ
+	join aims.VMODEL	as vm on equ.MANUFACTUR = vm.VENDOR and equ.MODEL_NUM = vm.MODEL
+	join aims.TYP		as etype on vm.[TYPE] = etype.[TYPE]
+	join aims.cod		as etName on vm.[TYPE] = etName.CODE and etName.[TYPE] = 'g' 
+	join aims.cod		as ec on etype.CLASS = ec.CODE and ec.[TYPE] = 'c'
+order by ec.[NAME],etName.[NAME]
+*/
+
+
+--	Added Hours of Operation to equipment using CC (where HOH records did not exist)
+/*
+INSERT INTO [aims].[EHRS]
+           ([TAG_NUMBER]
+           ,[FACILITY]
+           ,[TIME_ZONE]
+           ,[TYPE]
+           ,[TYPE_FACILITY]
+           ,[FRI_BEG_DATETIME]
+           ,[FRI_END_DATETIME]
+           ,[MON_BEG_DATETIME]
+           ,[MON_END_DATETIME]
+           ,[S_FRI_BEG_DATETIME]
+           ,[S_FRI_END_DATETIME]
+           ,[S_MON_BEG_DATETIME]
+           ,[S_MON_END_DATETIME]
+           ,[S_SAT_BEG_DATETIME]
+           ,[S_SAT_END_DATETIME]
+           ,[S_SUN_BEG_DATETIME]
+           ,[S_SUN_END_DATETIME]
+           ,[S_THU_BEG_DATETIME]
+           ,[S_THU_END_DATETIME]
+           ,[S_TUE_BEG_DATETIME]
+           ,[S_TUE_END_DATETIME]
+           ,[S_WED_BEG_DATETIME]
+           ,[S_WED_END_DATETIME]
+           ,[SAT_BEG_DATETIME]
+           ,[SAT_END_DATETIME]
+           ,[SUN_BEG_DATETIME]
+           ,[SUN_END_DATETIME]
+           ,[THU_BEG_DATETIME]
+           ,[THU_END_DATETIME]
+           ,[TUE_BEG_DATETIME]
+           ,[TUE_END_DATETIME]
+           ,[WED_BEG_DATETIME]
+           ,[WED_END_DATETIME])
+select										--select * from aims.EHRS
+            equ.TAG_NUMBER					--<ACCOUNT, varchar(50),>
+           ,equ.FACILITY					--<FACILITY, varchar(6),>
+		   ,'GMT'
+           ,'e'								--[TYPE]
+           ,equ.[FACILITY]
+           ,ccHrs.FRI_BEG_DATETIME			-- <FRI_BEG_DATETIME, datetime,>
+           ,cchrs.FRI_END_DATETIME			--<FRI_END_DATETIME, datetime,>
+           ,ccHrs.MON_BEG_DATETIME			--<MON_BEG_DATETIME, datetime,>
+           ,ccHrs.MON_END_DATETIME			--<MON_END_DATETIME, datetime,>
+           ,'1900-01-01 05:00:00.000'		--<S_FRI_BEG_DATETIME, datetime,>
+           ,'1900-01-01 05:00:00.000'		--<S_FRI_END_DATETIME, datetime,>
+           ,'1900-01-01 05:00:00.000'		--<S_MON_BEG_DATETIME, datetime,>
+           ,'1900-01-01 05:00:00.000'		--<S_MON_END_DATETIME, datetime,>
+           ,'1900-01-01 05:00:00.000'		--<S_SAT_BEG_DATETIME, datetime,>
+           ,'1900-01-01 05:00:00.000'		--<S_SAT_END_DATETIME, datetime,>
+           ,'1900-01-01 05:00:00.000'		--<S_SUN_BEG_DATETIME, datetime,>
+           ,'1900-01-01 05:00:00.000'		--<S_SUN_END_DATETIME, datetime,>
+           ,'1900-01-01 05:00:00.000'		--<S_THU_BEG_DATETIME, datetime,>
+           ,'1900-01-01 05:00:00.000'		--<S_THU_END_DATETIME, datetime,>
+           ,'1900-01-01 05:00:00.000'		--<S_TUE_BEG_DATETIME, datetime,>
+           ,'1900-01-01 05:00:00.000'		--<S_TUE_END_DATETIME, datetime,>
+           ,'1900-01-01 05:00:00.000'		--<S_WED_BEG_DATETIME, datetime,>
+           ,'1900-01-01 05:00:00.000'		--<S_WED_END_DATETIME, datetime,>
+           ,ccHrs.SAT_BEG_DATETIME			--<SAT_BEG_DATETIME, datetime,>
+           ,ccHrs.SAT_END_DATETIME			--<SAT_END_DATETIME, datetime,>
+           ,cchrs.SUN_BEG_DATETIME			--<SUN_BEG_DATETIME, datetime,>
+           ,ccHrs.SUN_END_DATETIME			--<SUN_END_DATETIME, datetime,>
+           ,ccHrs.THU_BEG_DATETIME			--<THU_BEG_DATETIME, datetime,>
+           ,ccHrs.THU_END_DATETIME			--<THU_END_DATETIME, datetime,>
+           ,ccHrs.TUE_BEG_DATETIME			--<TUE_BEG_DATETIME, datetime,>
+           ,ccHrs.TUE_END_DATETIME			--<TUE_END_DATETIME, datetime,>
+           ,ccHrs.WED_BEG_DATETIME			--<WED_BEG_DATETIME, datetime,>
+           ,ccHrs.WED_END_DATETIME			--<WED_END_DATETIME, datetime,>)
+from aims.equ		as equ
+	join aims.AHRS	as ccHrs on equ.COST_CTR = ccHrs.ACCOUNT and equ.FACILITY = ccHrs.FACILITY
+where 
+	not exists	(
+					select *
+					from aims.ehrs 
+					where facility = equ.FACILITY 
+						and 
+						TAG_NUMBER = equ.TAG_NUMBER
+				)
+*/
+
+
+--	Added Hours of Operation to equipment using CC (where HOH records DID exist - update)
+/*
+
+update aims.EHRS 
+set	 FRI_BEG_DATETIME	= ccHrs.FRI_BEG_DATETIME
+	,FRI_END_DATETIME	= ccHrs.FRI_END_DATETIME		
+	,MON_BEG_DATETIME	= ccHrs.MON_BEG_DATETIME
+	,MON_END_DATETIME	= ccHrs.MON_END_DATETIME
+	,SAT_BEG_DATETIME	= ccHrs.SAT_BEG_DATETIME
+	,SAT_END_DATETIME	= ccHrs.SAT_END_DATETIME
+	,SUN_BEG_DATETIME	= cchrs.SUN_BEG_DATETIME
+	,SUN_END_DATETIME	= ccHrs.SUN_END_DATETIME
+	,THU_BEG_DATETIME	= cchrs.THU_BEG_DATETIME
+	,THU_END_DATETIME	= cchrs.THU_END_DATETIME
+	,TUE_BEG_DATETIME	= cchrs.TUE_BEG_DATETIME
+	,TUE_END_DATETIME	= cchrs.TUE_END_DATETIME
+	,WED_BEG_DATETIME	= cchrs.WED_BEG_DATETIME
+	,WED_END_DATETIME	= cchrs.WED_END_DATETIME
+from aims.equ		as equ
+	join aims.AHRS	as ccHrs on equ.COST_CTR = ccHrs.ACCOUNT and equ.FACILITY = ccHrs.FACILITY
+	join aims.ehrs	as ehrs on equ.FACILITY = ehrs.FACILITY and equ.TAG_NUMBER = ehrs.TAG_NUMBER
+
+*/
+
+
+--	Add Meter readings
+/*
+
+select  
+	 fac.[NAME]							as facility
+	,fac.CODE
+	,equ.TAG_NUMBER						as [tag number]
+	,etype.[NAME]						as [equip type]
+	,convert(date,equ.INSVC_DATETIME)	as inservice
+from aims.equ 
+	join aims.cod	as etype on equ.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
+	join aims.cod	as fac on equ.FACILITY = fac.CODE and fac.[TYPE] = 'y'
+where 
+	etype.[NAME] like 'ventilator%'
+	and 
+	not exists	(
+					select *
+					from 
+					(
+					select sum(mtr) as sumMtr
+					from aims.wko 
+					where 
+						facility = equ.FACILITY 
+						and 
+						TAG_NUMBER = equ.TAG_NUMBER
+					) sumMtr
+					where sumMtr.sumMtr > 0
+				)
+order by etype.[NAME]
+
+select * from aims.MTR where FACILITY = 'north' and TAG_NUMBER = 'vent1'
+
+select 
+	 wko.WO_NUMBER
+	,wko.FACILITY
+	,wko.TAG_NUMBER
+	,wko.REQST_DATETIME
+	,wko.MTR
+	,wko.FREQ_UNIT
+from aims.wko 
+where facility = 'REMSIT' and TAG_NUMBER = 'vent4'
+order by wko.REQST_DATETIME
+
+
+update aims.wko 
+set MTR = 6185
+where FACILITY = 'North'
+	and 
+	WO_NUMBER = 7234
+
+*/
+
+
+
+--	Managers
+/*
+select 
+	 mgr.MANAGER		as [isManager]
+	,mgrName.[NAME]		as [manager]
+	,empName.[NAME]		as [employee]
+from aims.MANAGER as m 
+	join aims.EMP as mgr on m.MAN_FACILITY = mgr.FACILITY and m.MANAGER = mgr.EMPLOYEE
+	join aims.COD as mgrName on mgr.FACILITY = mgrName.FACILITY and mgr.MANAGER = mgrName.CODE and mgrName.[TYPE] = 'e'
+	join aims.cod as empName on m.EMP_FACILITY = empName.FACILITY and m.EMPLOYEE = empName.CODE and empName.[TYPE] = 'e'
+order by m.manager,m.[SEQUENCE]
+*/
+
+
+
+
+/*
+select * 
+from emp 
+where Employee = '00002'
+	and 
+	facility = 'north'
+
+--	Fixed Johnson, Walter J at North (heart hospital)
+update aims.emp 
+set TRADE = ''
+	,BEEPER_PH = ''
+	,BEEPER_NUM = ''
+	,MED_REC = ''
+	,PAY_SCHED = ''
+	,USER_LOGON = ''
+	,[SHIFT]	= ''
+	,TITLE = ''
+	,PHOTO = ''
+	,BADGE = ''
+	,MOBILE_TYPE = ''
+	,BAUD = ''
+	,[MESSAGE] = ''
+	,EMP_BIO = ''
+where Employee = '00002'
+	and 
+	facility = 'north'
+*/
+
+
+--	<<	Use this with data import into BJC Test db to match with WO's?	>>
+select 
+	[NAME]
+from aims.cod 
+where [TYPE] = 'g'
+order by [NAME]
