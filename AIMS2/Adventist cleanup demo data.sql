@@ -1736,9 +1736,566 @@ where Employee = '00002'
 */
 
 
---	<<	Use this with data import into BJC Test db to match with WO's?	>>
+--	Use this with data import into BJC Test db to match with WO's
+/*
+select distinct 
+	etype.[NAME]
+from aims.equ 
+	join aims.cod as etype on equ.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
+*/
+
+--select * from aims.zzEquipTypeProblems
+
+/*
+alter table aims.zzEquipTypeProblems
+add demoTypeCode varchar(50)
+*/
+
+/*
+update aims.zzEquipTypeProblems
+set demoTypeCode = etype.CODE
+from aims.zzEquipTypeProblems	as etp
+	join aims.cod				as etype on etp.demoTypeName = etype.[NAME] and etype.[TYPE] = 'g'
+*/
+
+
+--select * from aims.zzEquipTypeProblems where isnull(donotuse,0) = 0 order by [PROBLEM]
+
+/*
+update aims.zzEquipTypeProblems
+set doNotUse = 1
+where problem like ' Sold to%'
+*/
+
+/*
+update aims.zzEquipTypeProblems
+set problem	 = replace(problem,'"','')
+where PROBLEM like '%"%'
+*/
+
+/*
 select 
-	[NAME]
-from aims.cod 
-where [TYPE] = 'g'
-order by [NAME]
+	 demoTypeName 
+	,count(PROBLEM)	as countProblems
+from aims.zzEquipTypeProblems
+where isnull(doNotUse,0) = 0
+group by demoTypeName
+order by demoTypeName 
+
+
+select 
+	 demoTypeName 
+	,PROBLEM
+from aims.zzEquipTypeProblems
+where isnull(doNotUse,0) = 0
+order by demoTypeName,PROBLEM
+
+select 
+	 fac.[NAME]			as facility 
+	,equ.TAG_NUMBER		as [tag #]
+	,etype.[NAME]		as [equip type]
+from aims.equ			as equ
+	join aims.STA		as eStatus on equ.EQU_STATUS = eStatus.[STATUS]
+	join aims.COD		as fac on equ.FACILITY = fac.CODE and fac.[TYPE] = 'y'
+	left join aims.cod	as etype on equ.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
+where isnull(eStatus.HOLD_PM,'N') = 'N'
+order by fac.[NAME],etype.[NAME],equ.TAG_NUMBER
+
+*/
+
+
+
+--	Warranties at Model Level (being used only) set, push down to equipment 
+/*
+select distinct
+	 vm.VMODEL_ID
+	,etype.[NAME]	as [equip type]
+	,vm.MODEL
+	,vm.MODEL_NAME
+	,convert(decimal(9,2),0)			as warrantyPeriodYears
+into #warranties
+from aims.VMODEL	as vm 
+	join aims.equ	as equ on vm.VENDOR = equ.MANUFACTUR and vm.MODEL = equ.MODEL_NUM
+	join aims.COD	as etype on vm.[TYPE] = etype.code and etype.[TYPE] = 'g'
+order by etype.[NAME]
+*/
+
+
+/*
+select * from #warranties where warrantyPeriodYears = 1 order by [equip type]
+
+update #warranties
+set warrantyPeriodYears = .5
+where VMODEL_ID in (54,1091,1106,1105,1107,1071,42,1068,1088,4647,1066,1120,1064,1065)
+*/
+
+
+
+--select * from aims.COVERAGE
+
+/*
+INSERT INTO [aims].[VMODEL_WARRANTY]
+           ([VMODEL_ID]
+           ,[COVERAGE_ID]
+           ,[FREQUENCY]
+           ,[FREQ_UNIT]
+           ,[NOTE]
+           ,[EXPIRE_DATETIME])
+select
+            w.VMODEL_ID
+           ,3						--<COVERAGE_ID, int,>
+           ,case when warrantyPeriodYears < 1
+				then 6 
+				else warrantyPeriodYears
+			end						--<FREQUENCY, int,>
+           ,case when warrantyPeriodYears < 1 
+				then 'M' 
+				else 'Y'
+			end						--<FREQ_UNIT, varchar(1),>
+           ,NULL					--<NOTE, varchar(1000),>
+           ,'2499-01-01 00:00:00.000'	--<EXPIRE_DATETIME, datetime,>
+from #warranties as w
+*/
+
+--	Get Mfg/Model in use for pushing the warranty info down to equipment 
+/*
+
+select distinct
+	 manuf.[NAME]		as manuf
+	,etype.[NAME]		as [equip type]
+	,vm.MODEL
+	,vm.MODEL_NAME
+	,vmw.FREQUENCY
+	,vmw.FREQ_UNIT
+	,vmw.COVERAGE_ID
+from aims.VMODEL	as vm 
+	join aims.equ	as equ on vm.VENDOR = equ.MANUFACTUR and vm.MODEL = equ.MODEL_NUM
+	join aims.COD	as etype on vm.[TYPE] = etype.code and etype.[TYPE] = 'g'
+	join aims.cod	as manuf on vm.VENDOR = manuf.CODE and manuf.[TYPE] = 'm'
+	left join aims.VMODEL_WARRANTY as vmw on vm.VMODEL_ID = vmw.VMODEL_ID
+order by 
+	 manuf.[NAME]		
+	,etype.[NAME]		
+	,vm.MODEL
+
+*/
+
+--	Check equipment for warranty info
+/*
+
+select distinct
+	 fac.[NAME]			as facility
+	,equ.TAG_NUMBER
+	,manuf.[NAME]		as manuf
+	,etype.[NAME]		as [equip type]
+	,count(ew.EQU_WARRANTY_ID)	as countWarCovg
+from aims.equ		as equ 
+	join aims.COD	as etype on equ.[TYPE] = etype.code and etype.[TYPE] = 'g'
+	join aims.cod	as manuf on equ.MANUFACTUR = manuf.CODE and manuf.[TYPE] = 'm'
+	join aims.cod	as fac on equ.FACILITY = fac.CODE and fac.[TYPE] = 'y'
+	left join aims.EQU_WARRANTY as ew on equ.FACILITY = ew.FACILITY and equ.TAG_NUMBER = ew.TAG_NUMBER
+group by 	
+	 fac.[NAME]			
+	,equ.TAG_NUMBER
+	,manuf.[NAME]		
+	,etype.[NAME]
+order by 
+	 fac.[NAME]			
+	,equ.TAG_NUMBER
+	,manuf.[NAME]		
+	,etype.[NAME]
+
+*/
+
+
+--	Inspection templates
+
+--update aims.TYP set TEMPLATE_CODE = null 
+
+/*
+
+select * from aims.JOB where TEMPLATE_CODE is not null 
+select * from aims.VMODEL where TEMPLATE_CODE is not null 
+update aims.VMODEL set TEMPLATE_CODE = null 
+select * from aims.QUESTION 
+select * from aims.TEMPLATE_QUESTION
+delete aims.TEMPLATE_QUESTION
+delete aims.QUESTION
+
+delete aims.template
+
+*/
+
+--	Oops, removed too much
+/*
+
+set identity_insert [aims].[QUESTION] ON
+INSERT INTO [aims].[QUESTION]
+           (QUESTION_ID
+		   ,[TEMPLATE_CODE]7
+           ,[QUESTION_GROUP_ID]
+           ,[QUESTION]
+           ,[QUESTION_TYPE]
+           ,[MIN_VALUE]
+           ,[MAX_VALUE]
+           ,[UNIT]
+           ,[NUMRANKS]
+           ,[WORK_TYPE]
+           ,[VERSION]
+           ,[INC_PASS_FAIL]
+           ,[ALLOW_CLOSE_FAIL]
+           ,[TEMPLATE_TYPE]
+           ,[TASK]
+           ,[CREATE_DATETIME]
+           ,[EXPIRE_DATETIME]
+           ,[ANSWER_REQUIRED]
+           ,[PASS_FAIL_REQUIRED]
+           ,[YESNO_NOT_PASSFAIL]
+           ,[CM_ON_FAILURE])
+select 
+            QUESTION_ID
+		   ,TEMPLATE_CODE
+           ,QUESTION_GROUP_ID
+           ,QUESTION
+           ,QUESTION_TYPE
+           ,MIN_VALUE
+           ,MAX_VALUE
+           ,UNIT
+           ,NUMRANKS
+           ,WORK_TYPE
+           ,[VERSION]
+           ,INC_PASS_FAIL
+           ,ALLOW_CLOSE_FAIL
+           ,TEMPLATE_TYPE
+           ,TASK
+           ,CREATE_DATETIME
+           ,EXPIRE_DATETIME
+           ,ANSWER_REQUIRED
+           ,PASS_FAIL_REQUIRED
+           ,YESNO_NOT_PASSFAIL
+           ,CM_ON_FAILURE
+from OnsiteTraining2B.aims.question
+
+*/
+
+/*
+
+select 
+	 WO_NUMBER
+	,TEMPLATE_ID
+from aims.wko 
+where isnull(TEMPLATE_ID,0) <> 0
+
+*/
+
+
+
+--	Copy address book info over from facility to facility
+/*
+
+INSERT INTO [aims].[CUSEMAIL]
+           ([FACILITY]
+           ,[NAME]
+           ,[CONTACT]
+           ,[ADDRESS]
+           ,[DESCRIPTION1]
+           ,[DESCRIPTION2]
+           ,[EMP_NUM]
+           ,[TITLE])
+select 
+			'REMSIT'	as [FACILITY]
+           ,[NAME]
+           ,CONTACT
+           ,[ADDRESS]
+           ,DESCRIPTION1
+           ,DESCRIPTION2
+           ,EMP_NUM
+           ,TITLE
+from aims.CUSEMAIL as cusemail
+where 
+	not exists	(
+					select *
+					from aims.cusemail as cm 
+					where cm.FACILITY = 'REMSIT' 
+						and 
+						cm.[NAME] = cusemail.[NAME]
+				)
+	and cusemail.FACILITY = 'north'
+ 
+
+select * from aims.CUSEMAIL
+--select * from aims.cod where TYPE='y'
+
+*/
+
+--	Copy survey forms to other facilities
+--	Did using SQL edit table tool
+
+--	Copy forms and setup to other facilities
+/*
+select * from CUSFORM
+select * from CUSSETUP
+*/
+
+/*
+
+INSERT INTO [aims].[CUSFORM]
+           ([FACILITY]
+           ,[NAME]
+           ,[SALUTATION]
+           ,[RECIPIENT]
+           ,[SERVER_ADDRESS]
+           ,[MESSAGE_HEADER]
+           ,[MESSAGE_BODY]
+           ,[MESSAGE_FOOTER]
+           ,[EMAIL_INTERVAL]
+           ,[EMAIL_COUNTER]
+           ,[HTML_FORMAT]
+           ,[FONT]
+           ,[SIZE]
+           ,[INCLUDE_LOGO]
+           ,[INCLUDE_ALL_LABOR])
+select
+            'REMSIT'
+           ,[NAME]
+           ,SALUTATION
+           ,RECIPIENT
+           ,SERVER_ADDRESS
+           ,MESSAGE_HEADER
+           ,MESSAGE_BODY
+           ,MESSAGE_FOOTER
+           ,EMAIL_INTERVAL
+           ,EMAIL_COUNTER
+           ,HTML_FORMAT
+           ,FONT
+           ,SIZE
+           ,INCLUDE_LOGO
+           ,INCLUDE_ALL_LABOR 
+from aims.CUSFORM
+where FACILITY = 'NORTH'
+
+*/
+
+/*
+INSERT INTO [aims].[CUSSETUP]
+           ([CUSFORM_ID]
+           ,[WO_TYPE]
+           ,[WO_STATUS]
+           ,[CC_MAIN]
+           ,[AUTO_SEND]
+           ,[INTERVAL]
+           ,[COUNTER]
+           ,[FACILITY]
+           ,[RECEIVE_INTERVAL]
+           ,[COMPLETE_INTERVAL]
+           ,[RECEIVE_COUNTER]
+           ,[COMPLETE_COUNTER]
+           ,[FACILITY_RECEIVE]
+           ,[FACILITY_COMPLETE]
+           ,[CC_RECEIVE]
+           ,[CC_COMPLETE]
+           ,[CC_NON_MAIN]
+           ,[SRVC_DEPT])
+select 
+            CUSFORM_ID
+           ,WO_TYPE
+           ,WO_STATUS
+           ,CC_MAIN
+           ,AUTO_SEND
+           ,INTERVAL
+           ,[COUNTER]
+           ,'REMSIT'
+           ,RECEIVE_INTERVAL
+           ,COMPLETE_INTERVAL
+           ,RECEIVE_COUNTER
+           ,COMPLETE_COUNTER
+           ,FACILITY_RECEIVE
+           ,FACILITY_COMPLETE
+           ,CC_RECEIVE
+           ,CC_COMPLETE
+           ,CC_NON_MAIN
+           ,SRVC_DEPT
+from [aims].[CUSSETUP]
+where FACILITY = 'North'
+*/
+
+
+--	IS Fields
+/*
+create table #equipTypesIsFields(
+	 typeCode			varchar(50)
+	,typeName			varchar(500)
+	,wireless			bit
+	,wired				bit
+)
+insert into #equipTypesIsFields
+(
+	 typeCode			
+	,typeName			
+	,wireless			
+	,wired				
+)
+select 
+	 etype.CODE
+	,etype.[name]
+	,0 
+	,0
+from aims.COD as etype
+where etype.[TYPE] = 'g'
+*/
+
+--select * into aims.zzEquipTypesIsFields from #equipTypesIsFields
+
+/*
+insert into aims.zzEquipTypesIsFields
+(
+	 typeCode			
+	,typeName			
+	,wireless			
+	,wired	
+)
+select distinct
+	 etype.CODE 
+	,etype.[NAME]
+	,0
+	,0
+from aims.equ 
+	join aims.cod	as etype on equ.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
+*/
+
+
+/*
+select 
+	 equ.FACILITY 
+	,equ.TAG_NUMBER
+	,etif.wired 
+	,etif.wireless
+	,NULL				as wiredIp
+	,NULL				as wirelessIP
+into aims.zzEquipIpFields
+from aims.equ						as equ
+	join aims.zzEquipTypesIsFields	as etif on equ.[TYPE] = etif.typeCode
+	join aims.IS_EQUIP				as ise on equ.FACILITY = ise.FACILITY and equ.TAG_NUMBER = ise.TAG_NUMBER
+	join aims.IS_NETWORK			as isn on ise.IS_EQUIP_ID = isn.IS_EQUIP_ID 
+
+alter table aims.zzEquipIpFields
+add ID int identity(1,1)
+
+*/
+
+
+--	Set IP Addresses
+/*
+declare @wiredIp		int		= 8
+declare @wirelessIp		int		= 17
+
+declare @c_facility		varchar(50)
+declare @c_tagNumber	varchar(500)
+declare @c_isDeviceID	int
+declare @c_wired		bit
+declare @c_wireless		bit
+
+declare c_equip cursor for 
+(
+	select 
+		 eif.facility 
+		,eif.tag_number
+		,eif.wired 
+		,eif.wireless 
+		,ise.IS_EQUIP_ID
+	from aims.zzEquipIpFields	as eif
+		join aims.IS_EQUIP		as ise on eif.facility = ise.FACILITY and eif.tag_number = ise.TAG_NUMBER
+)
+open c_equip
+fetch next from c_equip into @c_facility,@c_tagNumber,@c_wired,@c_wireless,@c_isDeviceID
+while @@FETCH_STATUS=0
+begin 
+
+	if @c_wired = 1
+	begin 
+		update aims.IS_NETWORK
+		set WR_IP_V4 = '10.1.1.' + convert(varchar(3),@wiredIp)
+		where IS_EQUIP_ID = @c_isDeviceID
+	end 
+
+	if @c_wireless = 1
+	begin 
+		update aims.IS_NETWORK
+		set WF_IP_V4 = '10.1.2.' + convert(varchar(3),@wirelessIp)
+		where IS_EQUIP_ID = @c_isDeviceID
+	end 
+
+	set @wiredIp	+=1
+	set @wirelessIp +=1
+
+	fetch next from c_equip into @c_facility,@c_tagNumber,@c_wired,@c_wireless,@c_isDeviceID
+end 
+close c_equip 
+deallocate c_equip
+*/
+
+--	Tweak IS fields
+/*
+
+select 
+	 fac.[NAME]						as facility
+	,equ.TAG_NUMBER
+	,etif.* 
+	,isn.WF_IP_V4
+	,isn.WF_IP_STATIC
+	,isn.WR_IP_V4
+	,isn.WR_IP_STATIC
+from aims.equ						as equ
+	join aims.zzEquipTypesIsFields	as etif on equ.[TYPE] = etif.typeCode
+	join aims.IS_EQUIP				as ise on equ.FACILITY = ise.FACILITY and equ.TAG_NUMBER = ise.TAG_NUMBER
+	join aims.IS_NETWORK			as isn on ise.IS_EQUIP_ID = isn.IS_EQUIP_ID 
+	join aims.COD					as fac on equ.FACILITY = fac.code and fac.[TYPE] = 'y'
+
+*/
+
+--	Update checkboxes based on IP / DHCP
+/*
+
+update aims.IS_NETWORK
+set		 WF_IP_STATIC =	case when len(wf_ip_v4) > 0 
+							then 'Y' 
+							else 'N' 
+						 end 
+		,WR_IP_STATIC = case when len(wr_ip_v4) > 0 
+							then 'Y' 
+							else 'N' 
+						 end
+		,NETWORK =	case when len(wf_ip_v4) > 0 or len(wr_ip_v4) > 0 or WF_IP_STATIC = 'N' 
+						then 'Y' 
+						else 'N'
+					end
+		,NETWORK_CONNECT =	case when len(wf_ip_v4) > 0 or len(wr_ip_v4) > 0 or WF_IP_STATIC = 'N' 
+								then 'Y' 
+								else 'N'
+							end
+		,WF_INTERNET =	case when len(wf_ip_v4) > 0 or WF_IP_STATIC = 'N' 
+							then 'Y' 
+							else 'N' 
+						 end 
+		,WR_INTERNET = case when len(wr_ip_v4) > 0 
+							then 'Y' 
+							else 'N' 
+						end
+		,WF_LAN =	case when len(wf_ip_v4) > 0 or WF_IP_STATIC = 'N' 
+							then 'Y' 
+							else 'N' 
+						 end
+		,WR_LAN = case when len(wr_ip_v4) > 0 
+							then 'Y' 
+							else 'N' 
+						 end
+from aims.IS_NETWORK as n
+where 
+	len(n.WF_IP_V4) > 0 
+	or 
+	len(n.wr_ip_v4)	> 0 
+	or 
+	WF_IP_STATIC = 'N'
+
+*/
+
