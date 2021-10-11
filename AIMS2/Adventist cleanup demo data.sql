@@ -536,6 +536,7 @@ select
 from aims.VMODEL as vm
 	join aims.cod as etype on vm.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
 	join aims.cod as manuf on vm.VENDOR = manuf.CODE and manuf.[TYPE] = 'm'
+order by etype.[NAME]	
 where etype.[NAME] = 'scales'
 
 */
@@ -2298,4 +2299,378 @@ where
 	WF_IP_STATIC = 'N'
 
 */
+
+
+--	ECRI
+/*
+select 
+	 manuf.[name] 
+	,da.* 
+from aims.dir_adr	as da
+	join aims.cod	as manuf on da.code = manuf.code and manuf.[type] = 'm'
+where da.[type] = 'm'
+order by manuf.[name]
+*/
+
+/*
+delete [aims].[DIR_ADR__ECRI_MANUF]
+where dir_adr_id in (69,76,77)
+*/
+
+/*
+declare @searchTerm	varchar(500) = 'Zoll Medical'
+select 
+	 manuf.[name]		as manuf
+	,da.[DIR_ADR_ID]
+from aims.cod			as manuf
+	join aims.dir_adr	as da on manuf.code = da.code
+where manuf.[type] = 'm'
+	and 
+	not exists	(	
+					select * 
+					from [aims].[DIR_ADR__ECRI_MANUF]
+					where [DIR_ADR_ID] = da.[DIR_ADR_ID]
+				)
+	and left(manuf.[name],1) >= 'v'
+order by manuf.[name]
+select * from ecri_manuf where [name] like '%' + @searchTerm + '%' order by [name],[country] desc
+*/
+
+/*
+INSERT INTO [aims].[DIR_ADR__ECRI_MANUF]
+           ([DIR_ADR_ID]
+           ,[ECRI_CODE])
+     VALUES
+           (
+			    151			--<DIR_ADR_ID, numeric(5,0),>
+			   ,'340083'			--<ECRI_CODE, varchar(20),>
+		   )
+*/
+
+
+--	Equipment Type Usage on EQUIPMENT
+/*
+
+declare @ecriDevice varchar(500)	= 'mobile X-Ray Unit'
+select distinct 
+	 etype.code
+	,etype.[name]
+	,ted.*
+from aims.equ
+	join aims.cod						as etype on equ.[type] = etype.[code] and etype.[type] = 'g'
+	left join aims.[TYP__ECRI_DEVICE]	as ted on etype.code = ted.[type]
+where ted.[type] is null
+	and 
+	left(etype.[name],1) >= 'v'
+order by etype.[name]
+
+select 
+	 code 
+	,[name]
+from [aims].[ecri_device]
+where [name] like '%' + @ecriDevice + '%'
+order by [name]
+
+*/
+
+/*
+
+INSERT INTO [aims].[TYP__ECRI_DEVICE]
+           ([TYPE]
+           ,[ECRI_CODE])
+     VALUES
+           (
+				''					--<TYPE, varchar(20),>
+			   ,''					--<ECRI_CODE, varchar(20),>
+		   )
+
+
+
+
+
+select 
+	 fac.[name]						as facility
+	,equ.tag_number					as [tag #]
+	,etype.[name]					as [equip type]
+	,manuf.[name]					as [manuf]
+	,equ.model_num					as [model #]
+	,isnull(equ.equ_model_name,'')	as [model name]
+from aims.equ						as equ
+	left join aims.cod				as etype on equ.[type] = etype.[code] and etype.[type] = 'g'
+	left join aims.cod				as manuf on equ.manufactur = manuf.code and manuf.[type] = 'm'
+	left join aims.cod				as fac on equ.facility = fac.[code] and fac.[type] = 'y'
+where 
+	manuf.[name] like '%philips%'
+order by 
+	 fac.[name]						
+	,equ.tag_number
+
+
+select top 50
+	 wo_number
+	,wo_problem
+from aims.wko
+where facility = 'north'
+order by wo_number desc
+
+*/
+
+
+
+--	Deletion of macros
+/*
+
+select * from aims.state_macro where group_name <> '' order by [name]
+--select * from aims.rmacro where is_group = 'y' order by macro_name
+--select * from aims.rdmacro order by [name]
+
+
+--delete aims.state_macro where state_macro_id = 6191
+
+delete aims.rmacro where macro_name = 'test personal log macro' and create_datetime = '2013-05-15 12:00:00.000'
+
+update aims.rmacro
+set macro_name = 'Open PMs for current month'
+where macro_name = 'Brandons open PMs for current month'
+
+update aims.state_macro
+set group_name = 'Equipment'
+where group_name = 'equipment'
+
+*/
+
+
+
+--	Expansion fields
+--		Equipment
+--settings
+/*
+select * from aims.expn
+select * from aims.expd
+*/
+
+
+--data
+/*
+
+select 
+	 fac.[name]			as facility
+	,equ.tag_number		as [tag #]
+	,etype.[name]		as [equip type]
+	,equ.descriptn		as [descr]
+	,expd.field1		as [1Alarm Priority]
+	,expd.field2		as [2Default Settings]
+	,expd.field3		as [3Battery Repl Due]
+	,expd.field4		as [4Return to Location]
+	,expd.field13		as [13Color]
+	,expd.field14		as [14Logon]
+	,expd.field17		as [17Current Yr Cap Budg]
+	,expd.field23		as [23Software Config]
+from aims.equ			as equ
+	left join aims.expd as expd on equ.facility = expd.facility and equ.tag_number = expd.tag_number
+	left join aims.cod	as etype on equ.[type] = etype.code and etype.[type] = 'g'
+	join aims.cod		as fac on equ.facility = fac.code and fac.[type] = 'y' 
+--where etype.[name] like '%central%'
+where left(etype.[name],2) >= 'vh%'
+order by etype.[name]
+
+*/
+
+/*
+update aims.expd 
+set field4 = 'Rad / Portable Unit Bay'
+from aims.expd				as expd
+	join aims.equ			as equ on expd.facility = equ.facility and expd.tag_number = equ.tag_number
+	join aims.cod			as etype on equ.[type] = etype.code and etype.[type] = 'g'
+where etype.[name] = 'X-Ray Unit, Mobile'
+	and 
+	equ.descriptn = 'Regulator, Suction, Intermittent'
+
+update aims.expd
+set field3 = NULL
+where tag_number in ('428-19244')
+
+*/
+
+
+
+
+
+--	Rates
+/*
+
+select * from aims.rate_multi
+
+INSERT INTO [aims].[RATE_MULTI]
+           ([FACILITY]
+           ,[NAME]
+           ,[LABOR_TYPE]
+           ,[VALUE]
+           ,[DEFAULT_FIELD]
+           ,[VARIABLE])
+select
+		    'REMSIT'			--<FACILITY, varchar(6),>
+           ,[NAME]
+           ,[LABOR_TYPE]
+           ,[VALUE]
+           ,[DEFAULT_FIELD]
+           ,[VARIABLE]
+from aims.rate_multi
+where facility = 'North'
+
+select * from aims.cod where type='y'
+
+*/
+
+
+
+
+
+--	Dashboard
+
+/*
+--Chart (Work Order Aging)
+select
+    case
+        when Import = 'E'
+            or  Import = 'N'
+            then 'EasyNet WO'
+        else 'Non-Easynet WO'
+    end      ENWO
+  , ''       blank
+  , count(*) ColumnCount
+from
+    aims.wko
+where
+    WO_TYPE = 'CM'
+    and REQST_DATETIME >= convert(varchar, dateadd(day, - (datepart(dw, getdate()) - 1), getdate()), 101)
+                          + ' 00:00:00.000' - getdate() + getutcdate() -- = Sunday 
+    and REQST_DATETIME <= convert(varchar, dateadd(day, 7 - (datepart(dw, getdate())), getdate()), 101)
+                          + ' 23:59:59.000' - getdate() + getutcdate()  -- = Saturday 
+group by
+    case
+        when Import = 'E'
+            or  Import = 'N'
+            then 'EasyNet WO'
+        else 'Non-Easynet WO'
+    end;
+*/
+
+/*
+select 
+	 'wko'			as code
+	,''				as [name] 
+	,wko.wo_number	as [value]
+from aims.wko 
+where wo_status not in ('CL','PS')
+	and 
+	wo_type	= 'IN'
+*/
+	--select * from aims.cod where type='t' order by name
+
+--select * from aims.rmacro where component = 'exp'
+
+--	Needle 1	- assigned to vendor or employee
+select
+    count(wo_number)
+from
+    aims.wko
+where
+    WO_TYPE not in (
+                       'PM', 'IN', 'IW', 'SM'
+                   )
+    and REQST_DATETIME between dateadd(month, datediff(month, 0, getdate()), 0)
+                               and dateadd(s, -1, dateadd(mm, datediff(m, 0, getdate()) + 1, 0))
+	and 
+	WO_STATUS not in ('CL','PS')
+	and 
+	trade_emp is not null
+
+--	Needle 2	- NOT assigned to vendor or employee
+select
+    count(wo_number)
+from
+    aims.wko
+where
+    WO_TYPE not in (
+                       'PM', 'IN', 'IW', 'SM'
+                   )
+    and REQST_DATETIME between dateadd(month, datediff(month, 0, getdate()), 0)
+                               and dateadd(s, -1, dateadd(mm, datediff(m, 0, getdate()) + 1, 0))
+	and 
+	WO_STATUS not in ('CL','PS')
+	and 
+	trade_emp is null
+
+--	Odometer - total open
+select
+    count(wo_number) 
+from
+    aims.wko
+where
+    WO_TYPE not in (
+                       'PM', 'IN', 'IW', 'SM'
+                   )
+    and REQST_DATETIME between dateadd(month, datediff(month, 0, getdate()), 0)
+                               and dateadd(s, -1, dateadd(mm, datediff(m, 0, getdate()) + 1, 0))
+	and 
+	WO_STATUS not in ('CL','PS')
+
+--	Max - total created
+select
+    convert(int,count(wo_number) * 1.2)
+from
+    aims.wko
+where
+    WO_TYPE not in (
+                       'PM', 'IN', 'IW', 'SM'
+                   )
+    and REQST_DATETIME between dateadd(month, datediff(month, 0, getdate()), 0)
+                               and dateadd(s, -1, dateadd(mm, datediff(m, 0, getdate()) + 1, 0))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--	PM completion
+/*
+
+select 
+	 wko.facility
+	,fac.[name]			as facility 
+	,wko.wo_number
+	,wko.REQST_DATETIME
+	,wko.wo_problem
+from aims.wko
+	join aims.cod as fac on wko.facility = fac.code and fac.[type] = 'y'
+where wo_status not in ('CL','PS')
+	and 
+	wo_type <> 'PM'
+	--and 
+	--wko.facility = 'REMSIT'
+order by wko.REQST_DATETIME 
+
+*/
+
+/*
+select * from aims.prt order by part_desc
+*/
+
+
+
+
+
 
