@@ -3,7 +3,7 @@
 
 
 --	https://onsitetraining2.aimsasp.net/
---	dbserver02\sql2017.OnsiteTraining2
+--	dbserver02\sql2017.OnsiteTraining2 - AimsWeb04
 
 --	Locations
 /*
@@ -2571,6 +2571,8 @@ where wo_status not in ('CL','PS')
 --select * from aims.rmacro where component = 'exp'
 
 --	Needle 1	- assigned to vendor or employee
+/*
+
 select
     count(wo_number)
 from
@@ -2629,12 +2631,199 @@ where
                                and dateadd(s, -1, dateadd(mm, datediff(m, 0, getdate()) + 1, 0))
 
 
+*/
+
+
+--	/* NEW QUERIES */ **********************************************************************
+
+--	DIRECTOR:	new equipment by month
+/*
+
+select 
+	 annualNewEquByMonth.insvcMonthName
+		+ ' '
+		+ convert(char(4),annualNewEquByMonth.insvcYear)
+													as monthYear
+	,''												as [name]
+	,annualNewEquByMonth.countTags					as newEquip	
+from 
+(
+select 
+	 datepart(month,equ.INSVC_DATETIME)				as insvcMonth 
+	,datepart(year,equ.INSVC_DATETIME)				as insvcYear
+	,left(datename(month,equ.INSVC_DATETIME),3)		as insvcMonthName
+	,count(TAG_NUMBER)								as countTags
+from aims.equ   
+	join aims.cod as fac on equ.FACILITY = fac.CODE and fac.[TYPE] = 'y'
+where equ.INSVC_DATETIME between dateadd(yyyy,-1,getdate()) and  getdate()
+group by 
+	 datepart(month,equ.INSVC_DATETIME)				 
+	,datepart(year,equ.INSVC_DATETIME)				
+	,left(datename(month,equ.INSVC_DATETIME),3)	
+) as annualNewEquByMonth
+order by annualNewEquByMonth.insvcYear,annualNewEquByMonth.insvcMonth
+
+*/
+
+--	DIRECTOR:	PM Completion Trends over the year
+/*
+
+select 	 
+	annualPmCplByMonth.pmMonthName
+		+ ' '
+		+ convert(char(4),annualPmCplByMonth.pmYear)
+													as monthYear
+	,''												as [name]
+	,case when annualPmCplByMonth.duePms = 0 
+		then 0 
+		else convert(decimal(9,2),annualPmCplByMonth.closedPms)
+				/ convert(decimal(9,2),annualPmCplByMonth.duePms)
+	 end 											as pmComplPercent
+from 
+(
+select 
+	 datepart(month,wko.REQST_DATETIME)				as pmMonth 
+	,datepart(year,wko.REQST_DATETIME)				as pmYear
+	,left(datename(month,wko.REQST_DATETIME),3)		as pmMonthName
+	,sum(	case when wko.WO_STATUS = 'CL' 
+				then 1 
+				else 0 
+			end)									as closedPms
+	,count(wko.wo_number)							as duePms
+from aims.wko 
+where WO_TYPE in ('IN','PM')
+	and 
+	wko.REQST_DATETIME between dateadd(yyyy,-1,getdate()) and  getdate()
+group by 
+	 datepart(month,wko.REQST_DATETIME)				 
+	,datepart(year,wko.REQST_DATETIME)				
+	,left(datename(month,wko.REQST_DATETIME),3)
+) as annualPmCplByMonth
+order by annualPmCplByMonth.pmYear,annualPmCplByMonth.pmMonth
+
+*/
+
+--	DIRECTOR:	Recall Progress
+/*
+
+select 	 
+	annualPmCplByMonth.WO_PROBLEM					as recall
+	,''												as [name]
+	,case when annualPmCplByMonth.duePms = 0 
+		then 0 
+		else convert(decimal(9,2),annualPmCplByMonth.closedPms)
+				/ convert(decimal(9,2),annualPmCplByMonth.duePms)
+	 end 											as pmComplPercent
+from 
+(
+select 
+	 left(WO_PROBLEM,25)							as wo_problem
+	,sum(	case when wko.WO_STATUS = 'CL' 
+				then 1 
+				else 0 
+			end)									as closedPms
+	,count(wko.wo_number)							as duePms
+from aims.wko 
+where WO_TYPE in ('HA')	
+	and 
+	wko.REQST_DATETIME between dateadd(yyyy,-1,getdate()) and  getdate()
+group by 
+	 WO_PROBLEM
+) as annualPmCplByMonth
+order by annualPmCplByMonth.WO_PROBLEM
+
+*/
+
+
+--	Abuse
+/*
+
+select 		
+	annualSpecFails.pmMonthName
+		+ ' '
+		+ convert(char(4),annualSpecFails.pmYear)
+													as [code] 
+	,''												as [name]
+	,annualSpecFails.countWOs						as [value]
+from 
+(
+select 
+	 datepart(month,wko.REQST_DATETIME)				as pmMonth 
+	,datepart(year,wko.REQST_DATETIME)				as pmYear
+	,left(datename(month,wko.REQST_DATETIME),3)		as pmMonthName
+	,count(wko.wo_number)							as countWOs
+from aims.wko 
+	join aims.cod as woFail on wko.FAILURE = woFail.CODE and woFail.[TYPE] = 'f'
+where 
+	wko.FAILURE in ('ABY','VAN')
+	and 
+	wko.REQST_DATETIME between dateadd(yyyy,-1,getdate()) and  getdate()
+group by 
+	 datepart(month,wko.REQST_DATETIME)				
+	,datepart(year,wko.REQST_DATETIME)				
+	,left(datename(month,wko.REQST_DATETIME),3)
+) as annualSpecFails
+order by annualSpecFails.pmYear,annualSpecFails.pmMonth
+
+*/
+
+--	Patient Incident
+/*
+
+select 		
+	annualSpecFails.pmMonthName
+		+ ' '
+		+ convert(char(4),annualSpecFails.pmYear)
+													as [code] 
+	,''												as [name]
+	,annualSpecFails.countWOs						as [value]
+from 
+(
+select 
+	 datepart(month,wko.REQST_DATETIME)				as pmMonth 
+	,datepart(year,wko.REQST_DATETIME)				as pmYear
+	,left(datename(month,wko.REQST_DATETIME),3)		as pmMonthName
+	,count(wko.wo_number)							as countWOs
+from aims.wko 
+	left join aims.cod as woFail on wko.FAILURE = woFail.CODE and woFail.[TYPE] = 'f'
+where 
+	(
+		wko.FAILURE in ('PIN')
+		or 
+		wko.PATIENT_INJURY = 'Y'
+	)
+	and 
+	wko.REQST_DATETIME between dateadd(yyyy,-1,getdate()) and  getdate()
+group by 
+	 datepart(month,wko.REQST_DATETIME)				
+	,datepart(year,wko.REQST_DATETIME)				
+	,left(datename(month,wko.REQST_DATETIME),3)
+) as annualSpecFails
+order by annualSpecFails.pmYear,annualSpecFails.pmMonth
+
+--select * from aims.cod where TYPE='f' order by name
+--select * from aims.wko where WO_NUMBER = 158976
 
 
 
 
 
 
+
+
+
+
+
+
+--	Manufacturer usage
+/*
+
+select distinct supplier.[NAME] 
+from aims.equ 
+	join aims.cod	as supplier on equ.SUPPLIER = supplier.CODE and supplier.[TYPE] = 'm'
+order by supplier.[NAME]
+
+*/
 
 
 
@@ -2665,6 +2854,389 @@ order by wko.REQST_DATETIME
 
 */
 
+*/
+
+--	Operator Error
+/*
+
+select 		
+	annualSpecFails.pmMonthName
+		+ ' '
+		+ convert(char(4),annualSpecFails.pmYear)
+													as [code] 
+	,''												as [name]
+	,annualSpecFails.countWOs						as [value]
+from 
+(
+select 
+	 datepart(month,wko.REQST_DATETIME)				as pmMonth 
+	,datepart(year,wko.REQST_DATETIME)				as pmYear
+	,left(datename(month,wko.REQST_DATETIME),3)		as pmMonthName
+	,count(wko.wo_number)							as countWOs
+from aims.wko 
+	join aims.cod as woFail on wko.FAILURE = woFail.CODE and woFail.[TYPE] = 'f'
+where 
+	wko.FAILURE in ('OER')
+	and 
+	wko.REQST_DATETIME between dateadd(yyyy,-1,getdate()) and  getdate()
+group by 
+	 datepart(month,wko.REQST_DATETIME)				
+	,datepart(year,wko.REQST_DATETIME)				
+	,left(datename(month,wko.REQST_DATETIME),3)
+) as annualSpecFails
+order by annualSpecFails.pmYear,annualSpecFails.pmMonth
+
+--select * from aims.cod where TYPE='f' order by name
+--select * from aims.wko where WO_NUMBER = 158976
+
+*/
+
+--	DIRECTOR:	Aging By Priority (Open / Corrective)
+/*
+
+select 		
+	cmAging.ageDays									as [code] 
+	,''												as [name]
+	,cmAging.countWOs								as [value]
+from 
+(
+select 
+	 case 
+		when datediff(hour,wko.REQST_DATETIME,getdate()) <=24
+			then '< 1 day'
+		when datediff(day,wko.REQST_DATETIME,getdate()) between 1 and 3
+			then '1-3 days'
+		when datediff(day,wko.REQST_DATETIME,getdate()) between 4 and 7
+			then '4-7 days'
+		when datediff(day,wko.REQST_DATETIME,getdate()) between 8 and 14 
+			then '8 - 14 days'
+		else '> 14 days' 
+	end												as ageDays
+	,case 
+		when datediff(hour,wko.REQST_DATETIME,getdate()) <=24
+			then 1
+		when datediff(day,wko.REQST_DATETIME,getdate()) between 1 and 3
+			then 2
+		when datediff(day,wko.REQST_DATETIME,getdate()) between 4 and 7
+			then 3
+		when datediff(day,wko.REQST_DATETIME,getdate()) between 8 and 14 
+			then 4
+		else 5 
+	end												as ageDaysSort
+	,count(wko.wo_number)							as countWOs
+from aims.wko 
+where 
+	wko.WO_STATUS not in ('CL','PS')
+	and 
+	wko.WO_TYPE not in ('PM','IN','IW')		
+group by 
+	 case 
+		when datediff(hour,wko.REQST_DATETIME,getdate()) <=24
+			then '< 1 day'
+		when datediff(day,wko.REQST_DATETIME,getdate()) between 1 and 3
+			then '1-3 days'
+		when datediff(day,wko.REQST_DATETIME,getdate()) between 4 and 7
+			then '4-7 days'
+		when datediff(day,wko.REQST_DATETIME,getdate()) between 8 and 14 
+			then '8 - 14 days'
+		else '> 14 days' 
+	end												
+	,case 
+		when datediff(hour,wko.REQST_DATETIME,getdate()) <=24
+			then 1
+		when datediff(day,wko.REQST_DATETIME,getdate()) between 1 and 3
+			then 2
+		when datediff(day,wko.REQST_DATETIME,getdate()) between 4 and 7
+			then 3
+		when datediff(day,wko.REQST_DATETIME,getdate()) between 8 and 14 
+			then 4
+		else 5 
+	end	
+) as cmAging
+order by cmAging.ageDaysSort
+
+
+*/
+
+
+--	SUPERVISOR:	Recall Progress - Open by Tech
+/*
+
+select 	 
+	 recallAssignments.recallAssignment				as recall
+	,''												as [name]
+	,recallAssignments.countWos						as pmComplPercent
+from 
+(
+select 
+	 isnull(empName.[NAME],'<NOT ASSIGNED>')		as recallAssignment
+	,count(wko.wo_number)							as countWos
+from aims.wko 
+	left join aims.cod	as empName on wko.TRADE_EMP = empName.CODE and wko.FACILITY = empName.FACILITY and empName.[TYPE] = 'e'
+where WO_TYPE in ('HA')	
+	and 
+	WO_STATUS not in ('CL','PS')
+group by 
+	 isnull(empName.[NAME],'<NOT ASSIGNED>')
+) as recallAssignments
+order by recallAssignments.recallAssignment
+
+*/
+
+--	SUPERVISOR:	Recall Aging
+/*
+
+select 	 
+	 recallAging.recallAlert					as recall
+	,''											as [name]
+	,recallAging.ageDays						as recallAging
+from 
+(
+select distinct
+	  datediff(day,wko.REQST_DATETIME,getdate())	as ageDays
+	,left(wko.WO_PROBLEM,25)						as recallAlert
+from aims.wko
+where WO_TYPE in ('HA')	
+	and 
+	WO_STATUS not in ('CL','PS')
+) as recallAging
+order by recallAging.recallAlert
+*/
+
+
+--	Alerts / Recalls
+/*
+
+select 
+	 wko.FACILITY
+	,wko.TAG_NUMBER
+	,wko.WO_NUMBER
+	,left(wko.WO_PROBLEM,25)	as [problem/alert]
+from aims.WKO
+where WO_TYPE in ('HA')	
+	and 
+	WO_STATUS not in ('CL','PS')
+order by 
+	 wko.FACILITY
+	,left(wko.WO_PROBLEM,25)
+	,wko.TAG_NUMBER
+
+*/
+
+--	PM Completion by assignment for current month
+/*
+
+select 
+	  pmComplByAssign.pmAssignment			
+	 ,''									as [name]
+	 ,convert(decimal(15,2),(case when pmComplByAssign.countTotal is null 
+		then 0 
+		else convert(decimal(15,2),pmComplByAssign.countClosed)
+				/ convert(decimal(15,2),pmComplByAssign.countTotal)
+	  end))									as [numeric]
+from 
+(
+select 
+	 isnull(pmAsgn.[NAME],'<NOT ASSIGNED>')	as pmAssignment
+	,sum(case when WO_STATUS in ('CL','PS') 
+			then 1
+			else 0
+		 end)								as countClosed
+	,count(wo_number)						as countTotal
+from aims.wko 
+	left join aims.cod		as pmAsgn on wko.TRADE_EMP = pmAsgn.CODE and wko.FACILITY = pmAsgn.FACILITY and pmAsgn.[TYPE] = 'e'
+where 
+	WO_TYPE = 'PM'
+	and 
+	wko.REQST_DATETIME between dateadd(month, datediff(month, 0, getdate()), 0)
+								and
+                                dateadd(s, -1, dateadd(mm, datediff(m, 0, getdate()) + 1, 0))
+group by isnull(pmAsgn.[NAME],'<NOT ASSIGNED>')
+) as pmComplByAssign
+order by pmComplByAssign.pmAssignment
+
+*/
+
+--	Open CM Breakdown by Priority
+/*
+
+select 
+	 isnull(prty.[NAME],'<NO SELECTION>')	as [priority]
+	,''										as [name] 
+	,count(wko.wo_number)					as [numeric]
+from aims.wko 
+	left join aims.COD	as prty on wko.[PRIORITY] = prty.CODE and prty.[TYPE] = 'q'
+where 
+	WO_TYPE not in ('PM','IN','IW')	
+	and 
+	WO_STATUS not in ('CL','PS')
+group by isnull(prty.[NAME],'<NO SELECTION>')
+order by isnull(prty.[NAME],'<NO SELECTION>')
+
+*/
+
+--	TECHNICIAN:	Open PM by Tech
+/*
+
+select 
+	 isnull(empName.[NAME],'<NOT ASSIGNED>')		as [code] 
+	,''												as [name] 
+	,count(wko.WO_NUMBER)							as [value]
+from aims.wko 
+	left join aims.cod	as empName on wko.TRADE_EMP = empName.CODE and wko.FACILITY = empName.FACILITY and empName.[TYPE] = 'e'
+where 
+	WO_TYPE = 'PM'
+	and 
+	wko.REQST_DATETIME between dateadd(month, datediff(month, 0, getdate()), 0)
+								and
+                                dateadd(s, -1, dateadd(mm, datediff(m, 0, getdate()) + 1, 0))
+group by isnull(empName.[NAME],'<NOT ASSIGNED>')	
+order by isnull(empName.[NAME],'<NOT ASSIGNED>')
+
+*/
+
+--	TECHNICIAN:	Open PMs by Risk
+/*
+--	Needle 1 - High Risk
+select 									
+	count(wko.WO_NUMBER)	as [value]
+from aims.wko 
+	left join aims.cod	as empName on wko.TRADE_EMP = empName.CODE and wko.FACILITY = empName.FACILITY and empName.[TYPE] = 'e'
+	left join aims.EQU	as equ on wko.FACILITY = equ.FACILITY and wko.TAG_NUMBER = equ.TAG_NUMBER
+	left join aims.ERSK	as ersk on equ.FACILITY = ersk.FACILITY and equ.TAG_NUMBER = ersk.TAG_NUMBER
+where 
+	WO_TYPE = 'PM'
+	and 
+	wko.REQST_DATETIME between dateadd(month, datediff(month, 0, getdate()), 0)
+								and
+                                dateadd(s, -1, dateadd(mm, datediff(m, 0, getdate()) + 1, 0))
+	and 
+	ersk.RISK_TYPE = 'C'
+
+--	Needle 2 = Non-High Risk
+select 									
+	count(wko.WO_NUMBER)	as [value]
+from aims.wko 
+	left join aims.cod	as empName on wko.TRADE_EMP = empName.CODE and wko.FACILITY = empName.FACILITY and empName.[TYPE] = 'e'
+	left join aims.EQU	as equ on wko.FACILITY = equ.FACILITY and wko.TAG_NUMBER = equ.TAG_NUMBER
+	left join aims.ERSK	as ersk on equ.FACILITY = ersk.FACILITY and equ.TAG_NUMBER = ersk.TAG_NUMBER
+where 
+	WO_TYPE = 'PM'
+	and 
+	wko.REQST_DATETIME between dateadd(month, datediff(month, 0, getdate()), 0)
+								and
+                                dateadd(s, -1, dateadd(mm, datediff(m, 0, getdate()) + 1, 0))
+	and 
+	ersk.RISK_TYPE = 'P'
+
+--	Odometer - All
+select 									
+	count(wko.WO_NUMBER)	as [value]
+from aims.wko 
+	left join aims.cod	as empName on wko.TRADE_EMP = empName.CODE and wko.FACILITY = empName.FACILITY and empName.[TYPE] = 'e'
+	left join aims.EQU	as equ on wko.FACILITY = equ.FACILITY and wko.TAG_NUMBER = equ.TAG_NUMBER
+	left join aims.ERSK	as ersk on equ.FACILITY = ersk.FACILITY and equ.TAG_NUMBER = ersk.TAG_NUMBER
+where 
+	WO_TYPE = 'PM'
+	and 
+	wko.REQST_DATETIME between dateadd(month, datediff(month, 0, getdate()), 0)
+								and
+                                dateadd(s, -1, dateadd(mm, datediff(m, 0, getdate()) + 1, 0))
+*/
+
+  
+
+--	Manufacturer usage
+/*
+
+select distinct supplier.[NAME] 
+from aims.equ 
+	join aims.cod	as supplier on equ.SUPPLIER = supplier.CODE and supplier.[TYPE] = 'm'
+order by supplier.[NAME]
+
+*/
+
+
+--	PM Completion by Risk for current month
+/*
+
+select 
+	 openPmByRisk.riskClass
+	,''							as [name] 
+	,case when openPmByRisk.countTotal = 0 
+		then 0 
+		else convert(decimal(15,2),convert(decimal(15,2),openPmByRisk.countClosed)
+				/ 
+				convert(decimal(15,2),openPmByRisk.countTotal))
+	 end						as [numeric]
+from 
+(
+select  
+	 case 
+		when ersk.RISK_TYPE = 'C'
+			then 'High Risk' 
+		when ersk.RISK_TYPE = 'P'
+			then 'Non-High Risk'
+		else 'Life Safety' 
+	 end									as riskClass
+	,sum(case when WO_STATUS in ('CL','PS') 
+			then 1
+			else 0
+		 end)								as countClosed
+	,count(wko.wo_number)					as countTotal
+from aims.WKO
+	left join aims.equ on wko.FACILITY = equ.FACILITY and wko.TAG_NUMBER = equ.TAG_NUMBER
+	left join aims.ERSK as ersk on equ.facility = ersk.facility and equ.TAG_NUMBER = ersk.TAG_NUMBER
+where 
+	WO_TYPE = 'PM'
+	and 
+	wko.REQST_DATETIME between dateadd(month, datediff(month, 0, getdate()), 0)
+								and
+                                dateadd(s, -1, dateadd(mm, datediff(m, 0, getdate()) + 1, 0))
+group by 
+	 case 
+		when ersk.RISK_TYPE = 'C'
+			then 'High Risk' 
+		when ersk.RISK_TYPE = 'P'
+			then 'Non-High Risk'
+		else 'Life Safety' 
+	 end									
+) as openPmByRisk
+
+*/
+
+
+
+
+
+
+
+--	PM completion
+/*
+
+select 
+	 --wko.facility
+	fac.[name]			as facility 
+	,wko.wo_number		as [WO #]
+	,etype.[NAME]		as [equip type]
+	,wko.REQST_DATETIME
+	--,wko.wo_problem
+from aims.wko
+	join aims.cod		as fac on wko.facility = fac.code and fac.[type] = 'y'
+	left join aims.cod	as etype on wko.[TYPE] = etype.[CODE] and etype.[TYPE] = 'g'
+where wo_status not in ('CL','PS')
+	and 
+	wo_type = 'PM'
+	and 
+	wko.REQST_DATETIME between '10/1/2021' and '10/30/2021'
+order by 
+	fac.[name]			
+	,wko.wo_number
+
+select * from aims.cod where TYPE='r' order by name
+
+*/
+
 /*
 select * from aims.prt order by part_desc
 */
@@ -2674,3 +3246,394 @@ select * from aims.prt order by part_desc
 
 
 
+
+/*
+select * from aims.prt order by part_desc
+*/
+
+
+
+--	WO Expansion fields
+/*
+
+select 
+	 facName.[NAME] as facility
+	,wko.TAG_NUMBER
+	,wko.WO_NUMBER
+	,wko.WO_PROBLEM
+	,wexpd.FIELD14	as [EQ Cleaned] 
+	,wexpd.FIELD17	as [Mgmt Reviewed]
+	,wko.[type]
+from aims.wko 
+	left join aims.WEXPD on wko.FACILITY = wexpd.FACILITY and wko.WO_NUMBER = wexpd.WO_NUMBER
+	join aims.COD	as facName on wko.facility = facName.CODE and facName.[TYPE] = 'y'
+where REQST_DATETIME > '9/1/2021'
+order by wko.[type]
+
+*/
+
+/*
+
+update aims.WEXPD
+set FIELD17 = 'Y'
+from aims.wko 
+	left join aims.WEXPD on wko.FACILITY = wexpd.FACILITY and wko.WO_NUMBER = wexpd.WO_NUMBER
+	join aims.COD	as facName on wko.facility = facName.CODE and facName.[TYPE] = 'y'
+where REQST_DATETIME > '9/1/2021'
+	and 
+	wko.[type] <> 'AIRHAND'
+	and 
+	wko.WO_STATUS in ('CL','PS')
+
+*/
+
+
+
+/*
+
+declare @c_facility		varchar(50)
+		,@c_woNumber	varchar(500)
+
+declare c_newWOs cursor for 
+(
+	select 
+		 wko.facility 
+		,wko.wo_number 
+	from aims.wko 
+		left join aims.WEXPD on wko.FACILITY = wexpd.FACILITY and wko.WO_NUMBER = wexpd.WO_NUMBER
+		join aims.COD	as facName on wko.facility = facName.CODE and facName.[TYPE] = 'y'
+	where REQST_DATETIME > '9/1/2021'
+) 
+open c_newWOs 
+fetch next from c_newWOs into @c_facility,@c_woNumber
+while @@FETCH_STATUS=0
+begin 
+
+	if not exists(select * from aims.WEXPD where facility = @c_facility and WO_NUMBER = @c_woNumber)
+	begin 
+
+
+		INSERT INTO [aims].[WEXPD]
+           (
+			   [WO_NUMBER]
+			   ,[FACILITY]
+			)
+		VALUES
+           (
+			   @c_woNumber		-- <WO_NUMBER, int,>
+			   ,@c_facility		--<FACILITY, varchar(6),>
+           )
+
+	end 
+
+
+	fetch next from c_newWOs into @c_facility,@c_woNumber
+end 
+close c_newWOs 
+deallocate c_newWOs
+
+*/
+
+
+--	WO Expansion fields
+/*
+
+select * from aims.WEXPD
+
+
+update aims.wexpd 
+set field14 = 'Yes'
+where FACILITY = 'NORTH' and WO_NUMBER = '159044'
+
+
+update aims.wexpd 
+set	FIELD17 = 'N'
+	,FIELD18 = 'N'
+	,FIELD19 = 'N'
+	,FIELD20 = 'N'
+	,FIELD21 = 'N'
+	,FIELD22 = 'N'
+where FIELD17 = 'N'
+
+*/
+
+
+--	Purchase Order / contract
+/*
+select 
+	 po.PO_NUM
+	,count(li.LINE_ITEM_ID)	as countLineItems
+from aims.PO
+	left join aims.LINE_ITEM as li on po.PO_ID = li.PO_ID
+group by po.PO_NUM
+*/
+
+--/*
+
+--	PO Analysis - what is in there now?
+/*
+
+select 
+	 fac.[NAME]					as facility
+	,po.PO_NUM
+	,po.PO_STATUS
+	,convert(varchar(50),po.PO_DATETIME,101)	as poDate
+	,pc.[DESCRIPTION]			as [PO Status Name]
+	--,cnt.CONTROL_ID
+	--,li.*
+from aims.PO
+	--left join aims.LINE_ITEM	as li on po.PO_ID = li.PO_ID
+	--left join aims.cnt			as cnt on po.PO_NUM = cnt.PO_NUMBER
+	left join aims.PUR_COD		as pc on po.PO_STATUS = pc.code and pc.[TYPE] = 'OS'
+	join aims.cod				as fac on po.FACILITY = fac.CODE and fac.[TYPE] = 'y'
+where po.PO_STATUS not in ('C','IN')
+order by fac.[NAME],PO_NUM
+
+select * from aims.request
+
+*/
+
+--	Cleanup exissting PO / Req
+/*
+
+update aims.po 
+set PO_STATUS = 'C'
+from aims.PO
+	left join aims.PUR_COD		as pc on po.PO_STATUS = pc.code and pc.[TYPE] = 'OS'
+	join aims.cod				as fac on po.FACILITY = fac.CODE and fac.[TYPE] = 'y'
+where po.PO_STATUS not in ('C','IN')
+
+*/
+
+
+
+
+
+
+
+ 
+
+
+
+
+--	Fix Request / PO #'s to use sequential
+/*
+
+declare @nextPoNumber	varchar(50) = '1921032'
+		,@c_poId		int	
+
+declare c_po cursor for
+(
+select PO_ID
+from aims.PO
+where isnumeric(PO_NUM) = 0
+	or 
+	len(po_num) >= 10
+)
+open c_po
+fetch next from c_po into @c_poId 
+while @@FETCH_STATUS=0
+begin 
+
+	update aims.po 
+	set PO_NUM = @nextPoNumber
+	where PO_ID = @c_poId
+
+	set @nextPoNumber +=1
+
+	fetch next from c_po into @c_poId 
+end
+close c_po
+deallocate c_po
+
+select 
+	max(request_num)
+from aims.REQUEST
+where isnumeric(REQUEST_NUM) = 0
+
+update aims.request
+set request_num = left(request_num,9)
+where len(request_num) >= 10
+
+select * from aims.cod where TYPE='y'
+
+select max(request_num) as maxReqNum from aims.REQUEST where facility = 'south'
+select max(po_num) as MaxPoNum from aims.po where FACILITY = 'south'
+
+
+
+select * 
+from aims.PRT
+where FACILITY = 'remsit'
+
+select * from aims.cod where TYPE='y'
+
+select * from aims.PUR_COD where FACILITY = 'south' and type = 'et' order by [DESCRIPTION]
+
+select * from aims.prt where FACILITY = 'south'
+
+--*/
+
+
+
+
+--	Equipment count by type
+/*
+
+select  
+	 equ.DESCRIPTN
+	,equ.MODEL_NUM
+	,manuf.[NAME]		as manuf
+	,count(tag_number)	as cntTags
+from aims.EQU 
+	join aims.cod	as manuf on equ.MANUFACTUR = manuf.CODE and manuf.[TYPE] = 'm'
+	join aims.cod	as fac on equ.FACILITY = fac.CODE and fac.[TYPE] = 'y'
+where equ.FACILITY = 'north'
+group by 
+	 equ.DESCRIPTN
+	,equ.MODEL_NUM
+	,manuf.[NAME]
+order by 
+	 equ.DESCRIPTN
+	,equ.MODEL_NUM
+
+*/
+
+--	Cleared contracts, they were junk
+/*
+
+select 
+	 cnt.CONTROL_ID
+	,convert(varchar(50),cnt.BEGINNING_DATETIME,101)	as [start]
+	,convert(varchar(50),cnt.ENDING_DATETIME,101)		as [end]
+	,fac.[NAME]			as facility
+	,equ.TAG_NUMBER 
+	,etype.[NAME]		as [equ type]
+from aims.CNT			as cnt
+	join aims.EQU_CNT	as ecnt on cnt.CONTROL_ID = ecnt.CONTROL_ID
+	join aims.equ		as equ on ecnt.FACILITY = equ.FACILITY and ecnt.TAG_NUMBER = equ.TAG_NUMBER
+	left join aims.COD	as etype on equ.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
+	join aims.COD		as fac on equ.FACILITY = fac.CODE and fac.[TYPE] = 'y'
+order by cnt.CONTROL_ID,etype.[NAME]
+
+select * from aims.wcm where WORK_TYPE = 'c'
+select * from aims.WCT where WORK_TYPE = 'c'
+
+delete from aims.EQU_CNT
+delete from aims.climits
+delete from aims.CNT_PAYMENT
+delete from aims.CRATE
+delete from aims.CNT
+
+*/
+
+--	Cleanup equipment logs
+/*
+
+;with cte_minNotesDate(facility,tag_number,minNotesDate)
+as(
+		select 
+			 n.FACILITY 
+			,n.TAG_NUMBER
+			,convert(varchar(50),min(n.NOTE_DATETIME),101)
+		from aims.NOTES as n
+		group by n.FACILITY,n.TAG_NUMBER
+)
+select 
+	 fac.[NAME]										as facility
+	,equ.TAG_NUMBER
+	,etype.[NAME]									as [equip type]
+	,notes.NOTE_DATETIME
+	,notes.NOTES
+	,mnd.minNotesDate
+	,cvg.[DESCRIPTION]								as [warranty]
+	,convert(varchar(50),ew.EXPIRE_DATETIME,101)	as [war exp]
+	,convert(varchar(50),equ.INSVC_DATETIME,101)	as [insv date]
+from aims.equ 
+	left join aims.NOTES on equ.FACILITY = notes.FACILITY and equ.TAG_NUMBER = notes.TAG_NUMBER
+	left join cte_minNotesDate		as mnd on equ.FACILITY = mnd.facility and equ.TAG_NUMBER = mnd.tag_number
+	join aims.COD				as fac on equ.FACILITY = fac.CODE and fac.[TYPE] = 'y'
+	left join aims.COD				as etype on equ.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
+	left join aims.EQU_WARRANTY as ew on equ.FACILITY = ew.FACILITY and equ.TAG_NUMBER = ew.TAG_NUMBER
+		left join aims.COVERAGE		as cvg on ew.COVERAGE_ID = cvg.COVERAGE_ID
+where 
+	notes.notes like 'Description%'
+	or 
+	notes.notes like 'Equipment Type%'
+order by etype.[NAME],equ.tag_number,notes.NOTE_DATETIME desc
+
+*/
+
+
+--	Put equipment on contract
+
+
+;with cte_minNotesDate(facility,tag_number,minNotesDate)
+as(
+		select 
+			 n.FACILITY 
+			,n.TAG_NUMBER
+			,convert(varchar(50),min(n.NOTE_DATETIME),101)
+		from aims.NOTES as n
+		group by n.FACILITY,n.TAG_NUMBER
+)
+select 
+	 fac.[NAME]										as facility
+	,equ.TAG_NUMBER
+	,etype.[NAME]									as [equip type]
+	,mnd.minNotesDate
+	,cvg.[DESCRIPTION]								as [warranty]
+	,convert(varchar(50),ew.EXPIRE_DATETIME,101)	as [war exp]
+	,convert(varchar(50),equ.INSVC_DATETIME,101)	as [insv date]
+	,estatus.[NAME]									as [status]
+from aims.equ 
+	left join cte_minNotesDate	as mnd on equ.FACILITY = mnd.facility and equ.TAG_NUMBER = mnd.tag_number
+	join aims.COD				as fac on equ.FACILITY = fac.CODE and fac.[TYPE] = 'y'
+	left join aims.COD			as etype on equ.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
+	left join aims.EQU_WARRANTY as ew on equ.FACILITY = ew.FACILITY and equ.TAG_NUMBER = ew.TAG_NUMBER
+		left join aims.COVERAGE	as cvg on ew.COVERAGE_ID = cvg.COVERAGE_ID
+	join aims.cod				as estatus on equ.EQU_STATUS = estatus.CODE and estatus.[TYPE] = 's'
+order by etype.[NAME],equ.tag_number
+
+/*
+
+begin tran 
+update aims.notes 
+set notes = replace(convert(varchar(max),notes),'Radiographic','Anesthesia Units')
+where facility = 'north' 
+	and 
+	TAG_NUMBER in ('7616','7668')
+	and 
+	convert(varchar(max),NOTES) like '%Radiographic%'
+
+update aims.wko 
+set WO_PROBLEM = replace(wo_problem,'Radiographic','Anesthesia Units')
+from aims.wko
+where facility = 'north' 
+	and 
+	TAG_NUMBER in ('7616','7668')
+	and 
+	convert(varchar(max),WO_PROBLEM) like '%Radiographic%'
+
+
+	commit tran
+
+*/
+
+
+--	Remove log notes where the type or description changed drastically
+/*
+
+begin tran
+delete aims.NOTES
+where facility = 'north' and TAG_NUMBER in ('24429','24433')
+	and 
+	convert(varchar(max),NOTES) = 'Description has been changed from Anesthesia Unit to Anesthesia Machine.  Description changed by AIMS from the Equipment Control.'
+
+	
+	commit tran
+
+*/
+
+
+	
