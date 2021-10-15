@@ -3581,11 +3581,14 @@ select
 	 fac.[NAME]										as facility
 	,equ.TAG_NUMBER
 	,etype.[NAME]									as [equip type]
+	,equ.[DESCRIPTN]								as [equip descr]
+	,equ.MODEL_NUM
 	,mnd.minNotesDate
 	,cvg.[DESCRIPTION]								as [warranty]
 	,convert(varchar(50),ew.EXPIRE_DATETIME,101)	as [war exp]
 	,convert(varchar(50),equ.INSVC_DATETIME,101)	as [insv date]
 	,estatus.[NAME]									as [status]
+	,manufName.[NAME]								as [manuf]
 from aims.equ 
 	left join cte_minNotesDate	as mnd on equ.FACILITY = mnd.facility and equ.TAG_NUMBER = mnd.tag_number
 	join aims.COD				as fac on equ.FACILITY = fac.CODE and fac.[TYPE] = 'y'
@@ -3593,6 +3596,7 @@ from aims.equ
 	left join aims.EQU_WARRANTY as ew on equ.FACILITY = ew.FACILITY and equ.TAG_NUMBER = ew.TAG_NUMBER
 		left join aims.COVERAGE	as cvg on ew.COVERAGE_ID = cvg.COVERAGE_ID
 	join aims.cod				as estatus on equ.EQU_STATUS = estatus.CODE and estatus.[TYPE] = 's'
+	join aims.COD				as manufName on equ.MANUFACTUR = manufName.code and manufName.[TYPE] = 'm'
 order by etype.[NAME],equ.tag_number
 
 /*
@@ -3635,5 +3639,21 @@ where facility = 'north' and TAG_NUMBER in ('24429','24433')
 
 */
 
+--	Unique make/model actually used
+/*
 
-	
+select distinct
+	 manufName.[NAME]
+	,vm.MODEL
+	,etype.[NAME]
+	,equ.DESCRIPTN
+from aims.VMODEL	as vm
+	join aims.EQU	as equ on vm.VENDOR = equ.MANUFACTUR and vm.[TYPE] = equ.[TYPE] and vm.MODEL = equ.MODEL_NUM
+	join aims.COD	as manufName on vm.VENDOR = manufName.CODE and manufName.[TYPE] = 'm'
+	join aims.COD	as etype on vm.[TYPE] = etype.CODE and etype.[TYPE] = 'g'
+where equ.EQU_STATUS = 'iu'	
+order by 
+	 manufName.[NAME]
+	,vm.MODEL
+
+*/
